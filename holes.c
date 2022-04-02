@@ -56,19 +56,13 @@ Process *createProcess(int pNum, int memSize)
     return p;
 }
 
-void loadProcess(CPU *cpu, Process *p) // TODO
-{
-    cpu->size++;
-    p->clock = clock(); // Time it enters memory
-    
-
-}
-
 void firstFit(CPU *cpu, Process *p)
 {
     int set = 1; // Indicator to see if process can be added;
     int isFilled;
-    insertItem(cpu->current, p->clock, p);
+
+    p->clock = clock();
+    insertItem(cpu->current, (int)p->clock, p);
 
     for (int i = 0; i < CPU_MEM; ++i)
     {
@@ -93,7 +87,7 @@ void firstFit(CPU *cpu, Process *p)
             }
         }
     }
-    while (!isFilled)
+    while (!isFilled) // TODO
     {
         Process *r = getFirst(cpu); // Firstly added process
         reinsertNode(cpu, r); // Reinsert into priority queue
@@ -165,6 +159,12 @@ void executeProcesses(CPU *cpu)
     while (!isEmpty(cpu->current) || !isEmpty(cpu->queue))
     {
         Process *p = removeMin(cpu->queue);
+
+        if (strcmp(cpu->mode, "first") == 0)
+        {
+            firstFit(cpu, p);
+        }
+
         printMemoryInfo(cpu);
     }
 }
