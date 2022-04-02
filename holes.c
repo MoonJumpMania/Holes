@@ -1,20 +1,22 @@
 #include "holes.h"
 
 
+int getAvailableSpace(CPU *cpu, int size);
+
 int main(int argc, char **argv)
 {
-    if (argc != 2)
+    if (argc != 3)
     {
         printf("Invalid arguments\n");
         return -1;
     }
 
-    CPU *cpu = readFile(argv);
+    CPU *cpu = readFile(argv); // O(nlogn)
 
     executeProcesses(cpu);
 
     printf("Total loads = %d, average #processes = %.1f, "
-           "average #holes = %.1f, cumulative %mem = %d\n",
+           "average #holes = %.1f, cumulative %%mem = %d\n",
            cpu->loads, (float)cpu->tProcesses/(float)cpu->loads,
            (float)cpu->tHoles/(float)cpu->loads, cpu->memUsed);
 
@@ -30,7 +32,7 @@ CPU *readFile(char **argv)
 
     strcpy(cpu->mode, argv[2]);
 
-    while (fscanf(f, "%d %d\n", &pNum, &memSize))
+    while (fscanf(f, "%d %d\n", &pNum, &memSize) != EOF)
     {
         Process *p = createProcess(pNum, memSize);
         p->clock = clock();
@@ -45,6 +47,12 @@ CPU *createCPU()
 {
     CPU *cpu = calloc(1, sizeof(CPU));
     cpu->current = createHeap();
+    cpu->queue = createHeap();
+    cpu->mode = calloc(20, sizeof(char));
+    for (int i = 0; i < CPU_MEM; ++i)
+    {
+        cpu->memory[i] = -1;
+    }
     return cpu;
 }
 
@@ -58,42 +66,36 @@ Process *createProcess(int pNum, int memSize)
 
 void firstFit(CPU *cpu, Process *p)
 {
-    int set = 1; // Indicator to see if process can be added;
+    int set = 0; // Indicator to see if process can be added;
     int isFilled;
 
     p->clock = clock();
     insertItem(cpu->current, (int)p->clock, p);
+    
+    set = getAvailableSpace(cpu, p->memSize);
 
+    while (!isFilled)
+    {
+        Process *r = getFirst(cpu); // Firstly added process
+        reinsertNode(cpu, r); // Reinsert into priority queue
+        int i;
+        for (i = r->addr; i <= r->last; ++i)
+        {
+            cpu->memory[i] = -1; // Reset allocation in memory
+        }
+        for (i; cpu->memory[i] == -1 && i >= 0; --i); // Get first empty space in block
+        printf("N%d\n", cpu->memory[i]);
+    }
+}
+
+int getAvailableSpace(CPU *cpu, int size)
+{
+    int start, end;
     for (int i = 0; i < CPU_MEM; ++i)
     {
         if (cpu->memory[i] == -1)
         {
-            for (int j = i; j < i + p->memSize && set == 1; ++j)
-            {
-                if (cpu->memory[j] != -1)
-                {
-                    set = 0;
-                }
-            }
-            if (set)
-            {
-                for (int j = i; j < i + p->memSize; ++j)
-                {
-                    cpu->memory[j] = p->pNum;
-                }
-                p->addr = i;
-                p->last = i + p->memSize - 1;
-                return;
-            }
-        }
-    }
-    while (!isFilled) // TODO
-    {
-        Process *r = getFirst(cpu); // Firstly added process
-        reinsertNode(cpu, r); // Reinsert into priority queue
-        for (int i = r->addr; i <= r->last; ++i)
-        {
-            cpu->memory[i] = -1; // Reset allocation in memory
+            start
         }
     }
 }
@@ -131,35 +133,27 @@ int printMemoryInfo(CPU *cpu) // Memory usage, processes, holes, etc...
 
     for (int i = 0; i < CPU_MEM; ++i)
     {
-        if (cpu->memory[i] == -1) // Empty MB
-        {
-            holes++;
-            for (int j = i; cpu->memory[j] == -1; ++j)
-            {
-                i = j;
-            }
-        }
-        else
+        if (cpu->memory[i] != -1) // Occupied MB
         {
             memUsage++;
         }
     }
-    memUsage /= CPU_MEM;
+    memUsage *= 100/CPU_MEM;
     cpu->memUsed += memUsage;
     cpu->tHoles += holes;
     cpu->tProcesses += processes;
 
     printf("pid loaded, #processes = %d, #holes = %d, "
-           "%memusage = %d, cumulative %mem = %d\n",
-           processes, holes, memUsage, cpu->memUsed/cpu->loads);
+           "%%memusage = %d, cumulative %%mem = %d\n",
+           processes, holes, memUsage, 100 * cpu->memUsed/cpu->loads);
 }
 
 void executeProcesses(CPU *cpu)
 {
-    while (!isEmpty(cpu->current) || !isEmpty(cpu->queue))
+    while (!isEmpty(cpu->queue))
     {
         Process *p = removeMin(cpu->queue);
-
+        cpu->loads++;
         if (strcmp(cpu->mode, "first") == 0)
         {
             firstFit(cpu, p);
