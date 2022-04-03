@@ -1,8 +1,5 @@
 #include "holes.h"
 
-
-int getAvailableSpace(CPU *cpu, int size);
-
 int main(int argc, char **argv)
 {
     if (argc != 3)
@@ -15,11 +12,6 @@ int main(int argc, char **argv)
 
     executeProcesses(cpu);
 
-    printf("Total loads = %d, average #processes = %.1f, "
-           "average #holes = %.1f, cumulative %%mem = %d\n",
-           cpu->loads, (float)cpu->tProcesses/(float)cpu->loads,
-           (float)cpu->tHoles/(float)cpu->loads, cpu->memUsed);
-
     freeCPU(cpu);
     return 0;
 }
@@ -27,7 +19,7 @@ int main(int argc, char **argv)
 CPU *readFile(char **argv)
 {
     FILE *f = fopen(argv[1], "r");
-    int pNum, memSize;
+    int pNum, memSize, order = 0;
     CPU *cpu = createCPU();
 
     strcpy(cpu->mode, argv[2]);
@@ -35,8 +27,8 @@ CPU *readFile(char **argv)
     while (fscanf(f, "%d %d\n", &pNum, &memSize) != EOF)
     {
         Process *p = createProcess(pNum, memSize);
-        p->clock = clock();
-        insertItem(cpu->queue, p->clock, p);
+        p->clock = pNum;
+        insertItem(cpu->queue, (int)p->clock, p);
     }
 
     fclose(f);
@@ -66,41 +58,73 @@ Process *createProcess(int pNum, int memSize)
 
 void firstFit(CPU *cpu, Process *p)
 {
-    int set = 0; // Indicator to see if process can be added;
-    int isFilled;
-
-    p->clock = clock();
-    insertItem(cpu->current, (int)p->clock, p);
-    
-    set = getAvailableSpace(cpu, p->memSize);
-
-    while (!isFilled)
+    int isAdded = 0;
+    while (!isAdded)
     {
-        Process *r = getFirst(cpu); // Firstly added process
-        reinsertNode(cpu, r); // Reinsert into priority queue
-        int i;
-        for (i = r->addr; i <= r->last; ++i)
+        int addr = getBlock(cpu, p->memSize);
+
+        if (addr != -1)
         {
-            cpu->memory[i] = -1; // Reset allocation in memory
+            p->addr = addr;
+            p->last = addr + p->memSize-1;
+            p->clock = clock();
+            insertItem(cpu->current, (int)p->clock, p);
+            addToMem(cpu, p);
+            isAdded = 1;
         }
-        for (i; cpu->memory[i] == -1 && i >= 0; --i); // Get first empty space in block
-        printf("N%d\n", cpu->memory[i]);
+        else
+        {
+            Process *r = removeProcess(cpu); // Remove one process if there is no space
+            reinsertItem(cpu, r);
+        }
     }
 }
 
-int getAvailableSpace(CPU *cpu, int size)
+int getBlock(CPU *cpu, int size)
 {
-    int start, end;
-    for (int i = 0; i < CPU_MEM; ++i)
+    int i, j;
+    for (i = 0; i+size-1 < CPU_MEM; ++i) // Find valid spot
     {
         if (cpu->memory[i] == -1)
         {
-            start
+            for (j = i + 1; j < i+size; ++j)
+            {
+                if (cpu->memory[j] != -1)
+                {
+                    i = j;
+                    break;
+                }
+            }
+            if (j-i == size)
+            {
+                return i;
+            }
         }
+    }
+    return -1;
+}
+
+void addToMem(CPU *cpu, Process *p)
+{
+    for (int i = p->addr; i < p->last+1; ++i)
+    {
+        cpu->memory[i] = p->pNum;
     }
 }
 
-void reinsertNode(CPU *cpu, Process *p)
+Process *removeProcess(CPU *cpu)
+{
+    Node *n = removeMin(cpu->current);
+    Process *r = n->e;
+    free(n);
+    for (int i = r->addr; i < r->last+1; ++i)
+    {
+        cpu->memory[i] = -1;
+    }
+    return r;
+}
+
+void reinsertItem(CPU *cpu, Process *p)
 {
     p->rCount++;
     if (p->rCount >= REM_MAX)
@@ -109,15 +133,7 @@ void reinsertNode(CPU *cpu, Process *p)
         return;
     }
     p->clock = clock();
-    insertItem(cpu->current, (int)p->clock, p);
-}
-
-Process *getFirst(CPU *cpu) // Gets the first added node in heap
-{
-    Node *n = removeMin(cpu->current);
-    Process *p = n->e;
-    free(n);
-    return p;
+    insertItem(cpu->queue, (int)p->clock, p);
 }
 
 void freeCPU(CPU *cpu)
@@ -152,13 +168,31 @@ void executeProcesses(CPU *cpu)
 {
     while (!isEmpty(cpu->queue))
     {
-        Process *p = removeMin(cpu->queue);
+        Process *p = removeMin(cpu->queue); // Take out first process in queue
         cpu->loads++;
+
         if (strcmp(cpu->mode, "first") == 0)
         {
             firstFit(cpu, p);
         }
+        else if (strcmp(cpu->mode, "best") == 0)
+        {
+
+        }
+        else if (strcmp(cpu->mode, "worst") == 0)
+        {
+
+        }
+        else if (strcmp(cpu->mode, "next") == 0)
+        {
+
+        }
 
         printMemoryInfo(cpu);
     }
+
+    printf("Total loads = %d, average #processes = %.1f, "
+           "average #holes = %.1f, cumulative %%mem = %d\n",
+           cpu->loads, (float)cpu->tProcesses/(float)cpu->loads,
+           (float)cpu->tHoles/(float)cpu->loads, cpu->memUsed);
 }

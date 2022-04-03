@@ -6,9 +6,9 @@
 #include <time.h>
 #include "heap.h"
 
-#define CPU_MEM 1024
-#define MAX_PRO_MEM 512
-#define REM_MAX 3
+#define CPU_MEM 1024 // Size of CPU memory
+#define MAX_PRO_MEM 512 // Max size of a process
+#define REM_MAX 3 // Max amount of times a process can be removed from queue
 
 typedef struct process
 {
@@ -31,9 +31,11 @@ typedef struct cPU
 CPU *readFile(char **argv);
 CPU *createCPU();
 Process *createProcess(int num, int size);
-Process *getFirst(CPU *cpu);
-void reinsertNode(CPU *cpu, Process *p);
+void reinsertItem(CPU *cpu, Process *p);
 void freeCPU(CPU *cpu);
 void executeProcesses(CPU *cpu);
+int getBlock(CPU *cpu, int size);
+Process *removeProcess(CPU *cpu);
+void addToMem(CPU *cpu, Process *p);
 
 #endif //A3_HOLES_H
