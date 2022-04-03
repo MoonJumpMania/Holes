@@ -58,10 +58,10 @@ Process *createProcess(int pNum, int memSize)
 
 void firstFit(CPU *cpu, Process *p)
 {
-    int isAdded = 0;
+    int isAdded = 0, addr;
     while (!isAdded)
     {
-        int addr = getBlock(cpu, p->memSize);
+        addr = getBlock(cpu, p->memSize);
 
         if (addr != -1)
         {
@@ -114,9 +114,7 @@ void addToMem(CPU *cpu, Process *p)
 
 Process *removeProcess(CPU *cpu)
 {
-    Node *n = removeMin(cpu->current);
-    Process *r = n->e;
-    free(n);
+    Process *r = removeMin(cpu->current);
     for (int i = r->addr; i < r->last+1; ++i)
     {
         cpu->memory[i] = -1;
@@ -146,22 +144,28 @@ void freeCPU(CPU *cpu)
 int printMemoryInfo(CPU *cpu) // Memory usage, processes, holes, etc...
 {
     int holes = 0, processes = cpu->current->size, memUsage = 0;
-
-    for (int i = 0; i < CPU_MEM; ++i)
+    int i, j;
+    for (i = 0; i < CPU_MEM; ++i)
     {
         if (cpu->memory[i] != -1) // Occupied MB
         {
             memUsage++;
         }
+        else
+        {
+            holes++;
+            for (j = i+1; cpu->memory[j] == -1; ++j);
+            i = j;
+        }
     }
-    memUsage *= 100/CPU_MEM;
+    memUsage = memUsage * 100 / CPU_MEM;
     cpu->memUsed += memUsage;
     cpu->tHoles += holes;
     cpu->tProcesses += processes;
 
     printf("pid loaded, #processes = %d, #holes = %d, "
            "%%memusage = %d, cumulative %%mem = %d\n",
-           processes, holes, memUsage, 100 * cpu->memUsed/cpu->loads);
+           processes, holes, memUsage, cpu->memUsed/cpu->loads);
 }
 
 void executeProcesses(CPU *cpu)
@@ -194,5 +198,5 @@ void executeProcesses(CPU *cpu)
     printf("Total loads = %d, average #processes = %.1f, "
            "average #holes = %.1f, cumulative %%mem = %d\n",
            cpu->loads, (float)cpu->tProcesses/(float)cpu->loads,
-           (float)cpu->tHoles/(float)cpu->loads, cpu->memUsed);
+           (float)cpu->tHoles/(float)cpu->loads, cpu->memUsed/cpu->loads);
 }

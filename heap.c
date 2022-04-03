@@ -36,12 +36,16 @@ int size(Heap* h) // Returns size of heap
 
 void* minElement(Heap* h) // Returns the element of the smallest key node
 {
+    if (h->array[1] == NULL)
+        return NULL;
     return h->array[1]->e;
 }
 
 
 int minKey(Heap* h) // Returns the smallest key
 {
+    if (h->array[1] == NULL)
+        return NULL;
     return h->array[1]->k;
 }
 
