@@ -22,7 +22,7 @@ typedef struct process
 
 typedef struct cPU
 {
-    int memUsed, loads, tProcesses, tHoles, counter, isDone; // Info about cpu
+    int tMemUsed, loads, tProcesses, tHoles, counter; // Info about cpu
     Heap *current, *queue; // Two heaps for the ready and waiting queues
     int memory[CPU_MEM]; // Where the memory is stored
     char *mode; // First, best, worst, next fits
@@ -34,8 +34,11 @@ Process *createProcess(int num, int size);
 void requeueItem(CPU *cpu, Process *p);
 void freeCPU(CPU *cpu);
 void executeProcesses(CPU *cpu);
-int getBlock(CPU *cpu, int size);
+int getFirstBlock(CPU *cpu, int size);
 Process *removeProcess(CPU *cpu);
 void addToMem(CPU *cpu, Process *p);
+int getBestBlock(CPU *cpu, int size);
+int getWorstBlock(CPU *cpu, int size);
+int getNextBlock(CPU *cpu, int size);
 
 #endif //A3_HOLES_H

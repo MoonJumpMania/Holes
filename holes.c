@@ -56,31 +56,7 @@ Process *createProcess(int pNum, int memSize)
     return p;
 }
 
-void firstFit(CPU *cpu, Process *p)
-{
-    int isAdded = 0, addr;
-    while (!isAdded)
-    {
-        addr = getBlock(cpu, p->memSize);
-
-        if (addr != -1)
-        {
-            p->addr = addr;
-            p->last = addr + p->memSize-1;
-            p->clock = cpu->counter++;
-            insertItem(cpu->current, (int)p->clock, p);
-            addToMem(cpu, p);
-            isAdded = 1;
-        }
-        else
-        {
-            Process *r = removeProcess(cpu); // Remove one process if there is no space
-            requeueItem(cpu, r);
-        }
-    }
-}
-
-int getBlock(CPU *cpu, int size)
+int getFirstBlock(CPU *cpu, int size)
 {
     int i, j;
     for (i = 0; i+size-1 < CPU_MEM; ++i) // Find valid spot
@@ -101,6 +77,65 @@ int getBlock(CPU *cpu, int size)
             }
         }
     }
+    return -1;
+}
+
+int getBestBlock(CPU *cpu, int size)
+{
+    int start, min = 0x7FFFFFFF;
+    int i, j;
+    for (i = 0; i < CPU_MEM; ++i)
+    {
+        if (cpu->memory[i] == -1)
+        {
+            for (j = i+1; cpu->memory[j] == -1 && j < CPU_MEM; ++j);
+            if (min > j-i && j-i >= size)
+            {
+                min = j-i;
+                start = i;
+                i = j;
+            }
+        }
+    }
+    if (min == 0x7FFFFFFF)
+    {
+        return -1;
+    }
+    else
+    {
+        return start;
+    }
+}
+
+int getWorstBlock(CPU *cpu, int size)
+{
+    int start, max = 0;
+    int i, j;
+    for (i = 0; i < CPU_MEM; ++i)
+    {
+        if (cpu->memory[i] == -1)
+        {
+            for (j = i+1; cpu->memory[j] == -1 && j < CPU_MEM; ++j);
+            if (max < j - i && j - i >= size)
+            {
+                max = j - i;
+                start = i;
+                i = j;
+            }
+        }
+    }
+    if (max == 0)
+    {
+        return -1;
+    }
+    else
+    {
+        return start;
+    }
+}
+
+int getNextBlock(CPU *cpu, int size)
+{
     return -1;
 }
 
@@ -160,13 +195,13 @@ int printMemoryInfo(CPU *cpu) // Memory usage, processes, holes, etc...
         }
     }
     memUsage = memUsage * 100 / CPU_MEM;
-    cpu->memUsed += memUsage;
+    cpu->tMemUsed += memUsage;
     cpu->tHoles += holes;
     cpu->tProcesses += processes;
 
     printf("pid loaded, #processes = %d, #holes = %d, "
            "%%memusage = %d, cumulative %%mem = %d\n",
-           processes, holes, memUsage, cpu->memUsed/cpu->loads);
+           processes, holes, memUsage, cpu->tMemUsed / cpu->loads);
 }
 
 void executeProcesses(CPU *cpu)
@@ -174,23 +209,42 @@ void executeProcesses(CPU *cpu)
     while (!isEmpty(cpu->queue))
     {
         Process *p = removeMin(cpu->queue); // Take out first process in queue
+        int isAdded = 0, addr;
+
         cpu->loads++;
-
-        if (strcmp(cpu->mode, "first") == 0)
+        while (!isAdded)
         {
-            firstFit(cpu, p);
-        }
-        else if (strcmp(cpu->mode, "best") == 0)
-        {
+            if (strcmp(cpu->mode, "first") == 0)
+            {
+                addr = getFirstBlock(cpu, p->memSize);
+            }
+            else if (strcmp(cpu->mode, "best") == 0)
+            {
+                addr = getBestBlock(cpu, p->memSize);
+            }
+            else if (strcmp(cpu->mode, "worst") == 0)
+            {
+                addr = getWorstBlock(cpu, p->memSize);
+            }
+            else if (strcmp(cpu->mode, "next") == 0)
+            {
+                addr = getNextBlock(cpu, p->memSize);
+            }
 
-        }
-        else if (strcmp(cpu->mode, "worst") == 0)
-        {
-
-        }
-        else if (strcmp(cpu->mode, "next") == 0)
-        {
-
+            if (addr != -1)
+            {
+                p->addr = addr;
+                p->last = addr + p->memSize-1;
+                p->clock = cpu->counter++;
+                insertItem(cpu->current, (int)p->clock, p);
+                addToMem(cpu, p);
+                isAdded = 1;
+            }
+            else
+            {
+                Process *r = removeProcess(cpu); // Remove one process if there is no space
+                requeueItem(cpu, r);
+            }
         }
 
         printMemoryInfo(cpu);
@@ -199,5 +253,5 @@ void executeProcesses(CPU *cpu)
     printf("Total loads = %d, average #processes = %.1f, "
            "average #holes = %.1f, cumulative %%mem = %d\n",
            cpu->loads, (float)cpu->tProcesses/(float)cpu->loads,
-           (float)cpu->tHoles/(float)cpu->loads, cpu->memUsed/cpu->loads);
+           (float)cpu->tHoles/(float)cpu->loads, cpu->tMemUsed / cpu->loads);
 }
