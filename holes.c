@@ -27,7 +27,7 @@ CPU *readFile(char **argv)
     while (fscanf(f, "%d %d\n", &pNum, &memSize) != EOF)
     {
         Process *p = createProcess(pNum, memSize);
-        p->clock = pNum;
+        p->clock = cpu->counter++;
         insertItem(cpu->queue, (int)p->clock, p);
     }
 
@@ -67,7 +67,7 @@ void firstFit(CPU *cpu, Process *p)
         {
             p->addr = addr;
             p->last = addr + p->memSize-1;
-            p->clock = clock();
+            p->clock = cpu->counter++;
             insertItem(cpu->current, (int)p->clock, p);
             addToMem(cpu, p);
             isAdded = 1;
@@ -75,7 +75,7 @@ void firstFit(CPU *cpu, Process *p)
         else
         {
             Process *r = removeProcess(cpu); // Remove one process if there is no space
-            reinsertItem(cpu, r);
+            requeueItem(cpu, r);
         }
     }
 }
@@ -115,22 +115,23 @@ void addToMem(CPU *cpu, Process *p)
 Process *removeProcess(CPU *cpu)
 {
     Process *r = removeMin(cpu->current);
-    for (int i = r->addr; i < r->last+1; ++i)
+    for (int i = r->addr; i <= r->last; ++i)
     {
         cpu->memory[i] = -1;
     }
     return r;
 }
 
-void reinsertItem(CPU *cpu, Process *p)
+void requeueItem(CPU *cpu, Process *p)
 {
     p->rCount++;
     if (p->rCount >= REM_MAX)
     {
+        //printf("Process %d freed at load %d\n", p->pNum, cpu->loads);
         free(p);
         return;
     }
-    p->clock = clock();
+    p->clock = cpu->counter++;
     insertItem(cpu->queue, (int)p->clock, p);
 }
 
