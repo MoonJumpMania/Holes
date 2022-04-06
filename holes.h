@@ -23,6 +23,7 @@ typedef struct process
 typedef struct cPU
 {
     int tMemUsed, loads, tProcesses, tHoles, counter; // Info about cpu
+    int next; // Address for next fit
     Heap *current, *queue; // Two heaps for the ready and waiting queues
     int memory[CPU_MEM]; // Where the memory is stored
     char *mode; // First, best, worst, next fits

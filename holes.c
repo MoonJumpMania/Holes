@@ -116,7 +116,7 @@ int getWorstBlock(CPU *cpu, int size)
         if (cpu->memory[i] == -1)
         {
             for (j = i+1; cpu->memory[j] == -1 && j < CPU_MEM; ++j);
-            if (max < j - i && j - i >= size)
+            if (max < j - i && j-i >= size)
             {
                 max = j - i;
                 start = i;
@@ -136,6 +136,35 @@ int getWorstBlock(CPU *cpu, int size)
 
 int getNextBlock(CPU *cpu, int size)
 {
+    int i, j;
+    int passed = 0;
+    for (i = cpu->next + 1; !passed; ++i) // Find valid spot
+    {
+        if (cpu->memory[i] == -1)
+        {
+            for (j = i + 1; j < i+size; ++j)
+            {
+                if (cpu->memory[j] != -1)
+                {
+                    i = j;
+                    break;
+                }
+            }
+            if (j-i == size)
+            {
+                return i;
+            }
+        }
+
+        if (i >= CPU_MEM-1)
+        {
+            i = -1;
+        }
+        else if (i == cpu->next)
+        {
+            passed = 1;
+        }
+    }
     return -1;
 }
 
@@ -174,6 +203,7 @@ void freeCPU(CPU *cpu)
 {
     freeHeap(cpu->current);
     freeHeap(cpu->queue);
+    free(cpu->mode);
     free(cpu);
 }
 
@@ -235,6 +265,7 @@ void executeProcesses(CPU *cpu)
             {
                 p->addr = addr;
                 p->last = addr + p->memSize-1;
+                cpu->next = p->last;
                 p->clock = cpu->counter++;
                 insertItem(cpu->current, (int)p->clock, p);
                 addToMem(cpu, p);
