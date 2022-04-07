@@ -45,7 +45,7 @@ void* minElement(Heap* h) // Returns the element of the smallest key node
 int minKey(Heap* h) // Returns the smallest key
 {
     if (h->array[1] == NULL)
-        return NULL;
+        return -1;
     return h->array[1]->k;
 }
 
