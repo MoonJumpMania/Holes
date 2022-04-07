@@ -39,4 +39,4 @@ Used a document on heaps to implement my own for this assignment. Modifications 
 Data Structures Binary Heap Implementation in C
 Author: Dimitrios Michail
 ```
-Modifications: Adapted the code to support a heap of nodes instead of a heap of integers.
+Modifications: Adapted the code to support a heap of nodes containing processes instead of a heap of integers.
